@@ -1,0 +1,13 @@
+# Environnement virtuel (ton dossier venv)
+venv/
+pyvenv.cfg
+
+# Cache Python (les dossiers __pycache__ que l'on voit en haut)
+**/__pycache__/
+*.py[cod]
+
+# Variables d'environnement
+.env
+
+# Fichiers temporaires de scan
+temp_*.pdf

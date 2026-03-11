@@ -1,0 +1,457 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>CV.AI — Optimizer</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Syne:wght@400;700;800&family=DM+Mono:wght@300;400&display=swap" rel="stylesheet">
+<style>
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+:root {
+  --bg: #070710;
+  --surface: rgba(255,255,255,0.04);
+  --border: rgba(255,255,255,0.08);
+  --accent: #00f5c4;
+  --text: #e8e8f0;
+  --muted: rgba(232,232,240,0.5);
+  --danger: #ff4b6e;
+  --warn-bg: rgba(255,200,0,0.1);
+  --warn-border: rgba(255,200,0,0.3);
+  --warn-text: #ffd84d;
+}
+html, body { width: 100%; height: 100%; overflow-x: hidden; }
+body { background: var(--bg); color: var(--text); font-family: 'DM Mono', monospace; }
+#bg-canvas { position: fixed; top:0; left:0; width:100%; height:100%; z-index:0; pointer-events:none; }
+.shell {
+  position: relative; z-index: 10; min-height: 100vh;
+  display: grid; grid-template-rows: auto 1fr auto;
+  padding: 0 clamp(1.5rem, 5vw, 4rem);
+}
+header {
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 2rem 0 1.5rem; border-bottom: 1px solid var(--border);
+}
+.logo { font-family: 'Syne', sans-serif; font-weight: 800; font-size: 1.5rem; letter-spacing: -0.03em; }
+.logo span { color: var(--accent); }
+.header-right { display: flex; align-items: center; gap: 0.75rem; }
+.badge {
+  font-size: 0.62rem; letter-spacing: 0.15em; text-transform: uppercase;
+  color: var(--accent); border: 1px solid rgba(0,245,196,0.35);
+  padding: 0.3rem 0.75rem; border-radius: 2px;
+}
+.demo-pill {
+  font-size: 0.6rem; letter-spacing: 0.12em; text-transform: uppercase;
+  color: var(--warn-text); border: 1px solid var(--warn-border);
+  padding: 0.3rem 0.75rem; border-radius: 2px; background: var(--warn-bg);
+  opacity: 0; transition: opacity 0.4s;
+}
+.demo-pill.on { opacity: 1; }
+main {
+  display: grid; grid-template-columns: 1fr 1fr;
+  gap: 2rem; padding: 3rem 0; align-items: start;
+}
+@media (max-width: 860px) { main { grid-template-columns: 1fr; } }
+.card {
+  background: var(--surface); border: 1px solid var(--border);
+  border-radius: 6px; padding: 2rem; backdrop-filter: blur(20px);
+  transition: border-color 0.3s;
+}
+.card:hover { border-color: rgba(0,245,196,0.18); }
+.card-label { font-size: 0.65rem; letter-spacing: 0.2em; text-transform: uppercase; color: var(--accent); margin-bottom: 1.5rem; font-family: 'Syne', sans-serif; }
+.tabs { display: flex; border-bottom: 1px solid var(--border); margin-bottom: 1.75rem; }
+.tab {
+  font-family: 'DM Mono', monospace; font-size: 0.68rem; letter-spacing: 0.12em;
+  text-transform: uppercase; padding: 0.8rem 1.4rem; background: none; border: none;
+  border-bottom: 2px solid transparent; color: var(--muted); cursor: pointer;
+  transition: color 0.2s, border-color 0.2s; margin-bottom: -1px;
+}
+.tab.active { color: var(--accent); border-bottom-color: var(--accent); }
+.tab:hover:not(.active) { color: var(--text); }
+.tab-pane { display: none; }
+.tab-pane.active { display: block; }
+.field { margin-bottom: 1.5rem; }
+label { display: block; font-size: 0.67rem; letter-spacing: 0.1em; text-transform: uppercase; color: var(--muted); margin-bottom: 0.55rem; }
+textarea {
+  width: 100%; background: rgba(0,0,0,0.35); border: 1px solid var(--border);
+  border-radius: 3px; color: var(--text); font-family: 'DM Mono', monospace;
+  font-size: 0.78rem; padding: 0.85rem 1rem; outline: none; resize: vertical;
+  min-height: 130px; line-height: 1.65; transition: border-color 0.25s, box-shadow 0.25s;
+}
+textarea:focus { border-color: rgba(0,245,196,0.5); box-shadow: 0 0 0 2px rgba(0,245,196,0.06); }
+.dropzone {
+  border: 1px dashed rgba(0,245,196,0.28); border-radius: 4px; padding: 1.75rem 1.5rem;
+  text-align: center; cursor: pointer; transition: background 0.2s, border-color 0.2s; position: relative;
+}
+.dropzone:hover, .dropzone.over { background: rgba(0,245,196,0.04); border-color: rgba(0,245,196,0.6); }
+.dropzone input[type=file] { position: absolute; inset: 0; opacity: 0; cursor: pointer; width: 100%; height: 100%; }
+.dz-icon { font-size: 1.8rem; opacity: 0.5; display: block; margin-bottom: 0.6rem; }
+.dz-text { font-size: 0.75rem; color: var(--muted); line-height: 1.5; }
+.dz-text strong { color: var(--accent); font-weight: 400; }
+#file-name { margin-top: 0.5rem; font-size: 0.68rem; color: var(--accent); min-height: 1rem; }
+.btn-row { display: flex; gap: 0.75rem; flex-wrap: wrap; }
+.btn {
+  font-family: 'DM Mono', monospace; font-size: 0.72rem; letter-spacing: 0.12em;
+  text-transform: uppercase; padding: 0.8rem 1.6rem; border: none; border-radius: 3px;
+  cursor: pointer; transition: transform 0.12s, box-shadow 0.15s, opacity 0.15s;
+}
+.btn:active { transform: scale(0.97); }
+.btn:disabled { opacity: 0.4; cursor: not-allowed; }
+.btn-primary { background: var(--accent); color: var(--bg); font-weight: 700; }
+.btn-primary:hover:not(:disabled) { box-shadow: 0 0 22px rgba(0,245,196,0.4); }
+.btn-outline { background: transparent; color: var(--accent); border: 1px solid rgba(0,245,196,0.4); }
+.btn-outline:hover:not(:disabled) { background: rgba(0,245,196,0.06); }
+.loader { display: none; align-items: center; gap: 0.6rem; font-size: 0.7rem; color: var(--accent); letter-spacing: 0.08em; margin-top: 1rem; }
+.loader.on { display: flex; }
+.dots span { display: inline-block; width: 5px; height: 5px; border-radius: 50%; background: var(--accent); animation: blink 1.2s infinite; }
+.dots span:nth-child(2) { animation-delay: .2s; }
+.dots span:nth-child(3) { animation-delay: .4s; }
+@keyframes blink { 0%,80%,100%{opacity:.15} 40%{opacity:1} }
+.err { display: none; margin-top: 0.9rem; font-size: 0.72rem; color: var(--danger); border: 1px solid rgba(255,75,110,0.3); border-radius: 3px; padding: 0.7rem 1rem; background: rgba(255,75,110,0.05); }
+.err.on { display: block; }
+.demo-banner { display: none; margin-top: 0.9rem; font-size: 0.7rem; color: var(--warn-text); border: 1px solid var(--warn-border); border-radius: 3px; padding: 0.7rem 1rem; background: var(--warn-bg); line-height: 1.6; }
+.demo-banner.on { display: block; }
+.results { display: flex; flex-direction: column; gap: 1.5rem; }
+.empty { text-align: center; padding: 5rem 2rem; color: var(--muted); }
+.empty-sym { font-size: 2.5rem; opacity: 0.3; display: block; margin-bottom: 1rem; }
+.empty p { font-size: 0.78rem; line-height: 1.8; }
+.score-card {
+  background: var(--surface); border: 1px solid var(--border); border-radius: 6px;
+  padding: 1.75rem 2rem; display: flex; align-items: center; gap: 2rem;
+  backdrop-filter: blur(20px); animation: fadeUp 0.5s ease both;
+}
+@keyframes fadeUp { from{opacity:0;transform:translateY(12px)} to{opacity:1;transform:none} }
+.ring-wrap { flex-shrink: 0; position: relative; width: 108px; height: 108px; }
+.ring-wrap svg { transform: rotate(-90deg); }
+.ring-bg { stroke: rgba(255,255,255,0.06); }
+.ring-fg { stroke-linecap: round; stroke-dasharray: 314; stroke-dashoffset: 314; transition: stroke-dashoffset 1.2s cubic-bezier(.17,.84,.44,1); filter: drop-shadow(0 0 5px currentColor); }
+.ring-label { position: absolute; inset: 0; display: flex; flex-direction: column; align-items: center; justify-content: center; }
+.ring-num { font-family: 'Syne', sans-serif; font-size: 1.75rem; font-weight: 800; line-height: 1; }
+.ring-unit { font-size: 0.6rem; color: var(--muted); letter-spacing: 0.1em; }
+.score-meta h3 { font-family: 'Syne', sans-serif; font-size: 0.95rem; font-weight: 700; margin-bottom: 0.4rem; }
+.score-meta p { font-size: 0.73rem; color: var(--muted); line-height: 1.65; }
+.reco-card { background: var(--surface); border: 1px solid var(--border); border-radius: 6px; overflow: hidden; backdrop-filter: blur(20px); animation: fadeUp 0.5s ease 0.1s both; }
+.reco-head { padding: 1.1rem 1.75rem; border-bottom: 1px solid var(--border); font-size: 0.65rem; letter-spacing: 0.2em; text-transform: uppercase; color: var(--accent); font-family: 'Syne', sans-serif; }
+.reco-body { padding: 1.4rem 1.75rem; font-size: 0.78rem; line-height: 1.85; color: var(--muted); white-space: pre-wrap; max-height: 320px; overflow-y: auto; }
+.reco-body::-webkit-scrollbar { width: 3px; }
+.reco-body::-webkit-scrollbar-thumb { background: rgba(0,245,196,0.2); border-radius: 2px; }
+.cv-card { background: var(--surface); border: 1px solid var(--border); border-radius: 6px; overflow: hidden; backdrop-filter: blur(20px); animation: fadeUp 0.5s ease both; }
+.cv-head { padding: 1.1rem 1.75rem; border-bottom: 1px solid var(--border); display: flex; align-items: center; justify-content: space-between; }
+.cv-head span { font-size: 0.65rem; letter-spacing: 0.2em; text-transform: uppercase; color: var(--accent); font-family: 'Syne', sans-serif; }
+.btn-copy { font-family: 'DM Mono', monospace; font-size: 0.62rem; letter-spacing: 0.1em; text-transform: uppercase; padding: 0.35rem 0.85rem; background: transparent; border: 1px solid rgba(123,94,167,0.4); color: #b09ad4; border-radius: 2px; cursor: pointer; transition: background 0.2s; }
+.btn-copy:hover { background: rgba(123,94,167,0.1); }
+.cv-body { padding: 1.4rem 1.75rem; font-size: 0.75rem; line-height: 1.85; color: var(--muted); white-space: pre-wrap; max-height: 380px; overflow-y: auto; }
+.cv-body::-webkit-scrollbar { width: 3px; }
+.cv-body::-webkit-scrollbar-thumb { background: rgba(123,94,167,0.3); border-radius: 2px; }
+footer { border-top: 1px solid var(--border); padding: 1.2rem 0; font-size: 0.62rem; color: rgba(232,232,240,0.2); letter-spacing: 0.1em; display: flex; justify-content: space-between; }
+</style>
+</head>
+<body>
+<canvas id="bg-canvas"></canvas>
+<div class="shell">
+  <header>
+    <div class="logo">CV<span>.</span>AI</div>
+    <div class="header-right">
+      <div class="demo-pill" id="demo-pill">⚡ Mode démo</div>
+      <div class="badge">Expert Optimizer</div>
+    </div>
+  </header>
+  <main>
+    <div class="card">
+      <div class="card-label">// Configuration</div>
+      <div class="tabs">
+        <button class="tab active" data-tab="analyze">Analyser</button>
+        <button class="tab" data-tab="generate">Générer CV</button>
+      </div>
+      <div class="field">
+        <label>CV — Fichier PDF</label>
+        <div class="dropzone" id="dropzone">
+          <input type="file" id="cv-file" accept=".pdf" />
+          <span class="dz-icon">📄</span>
+          <div class="dz-text"><strong>Glissez votre PDF</strong> ou cliquez pour sélectionner</div>
+          <div id="file-name"></div>
+        </div>
+      </div>
+      <div class="field">
+        <label>Description du poste</label>
+        <textarea id="job-desc" placeholder="Collez ici l'offre d'emploi..."></textarea>
+      </div>
+      <div class="tab-pane active" id="pane-analyze">
+        <div class="btn-row">
+          <button class="btn btn-primary" id="btn-analyze">Analyser le CV</button>
+        </div>
+        <div class="loader" id="load-analyze"><div class="dots"><span></span><span></span><span></span></div><span id="load-analyze-txt">Analyse en cours...</span></div>
+        <div class="err" id="err-analyze"></div>
+        <div class="demo-banner" id="demo-analyze">⚡ Backend non joignable — résultat de démonstration affiché.<br>En production, lancez votre FastAPI sur localhost:8000.</div>
+      </div>
+      <div class="tab-pane" id="pane-generate">
+        <div class="btn-row">
+          <button class="btn btn-outline" id="btn-generate">Générer CV optimisé</button>
+        </div>
+        <div class="loader" id="load-generate"><div class="dots"><span></span><span></span><span></span></div><span id="load-generate-txt">Génération en cours...</span></div>
+        <div class="err" id="err-generate"></div>
+        <div class="demo-banner" id="demo-generate">⚡ Backend non joignable — résultat de démonstration affiché.<br>En production, lancez votre FastAPI sur localhost:8000.</div>
+      </div>
+    </div>
+    <div class="results" id="results">
+      <div class="empty" id="empty">
+        <span class="empty-sym">✦</span>
+        <p>Uploadez votre CV et une offre d'emploi<br>pour obtenir une analyse ou un CV optimisé.</p>
+      </div>
+    </div>
+  </main>
+  <footer>
+    <span>CV.AI — FastAPI + Docling</span>
+    <span>Powered by LLM</span>
+  </footer>
+</div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+<script>
+// ── Three.js ──────────────────────────────────────────────────────────────────
+(function() {
+  const canvas = document.getElementById('bg-canvas');
+  if (typeof THREE === 'undefined') return;
+  const renderer = new THREE.WebGLRenderer({ canvas, alpha: true, antialias: true });
+  renderer.setPixelRatio(Math.min(devicePixelRatio, 2));
+  const scene = new THREE.Scene();
+  const camera = new THREE.PerspectiveCamera(60, innerWidth/innerHeight, 0.1, 200);
+  camera.position.z = 28;
+  const geo = new THREE.BufferGeometry();
+  const N = 1200, pos = new Float32Array(N*3), spd = new Float32Array(N);
+  for (let i=0;i<N;i++) {
+    pos[i*3]=(Math.random()-.5)*80; pos[i*3+1]=(Math.random()-.5)*60; pos[i*3+2]=(Math.random()-.5)*50;
+    spd[i]=.003+Math.random()*.006;
+  }
+  geo.setAttribute('position', new THREE.BufferAttribute(pos,3));
+  scene.add(new THREE.Points(geo, new THREE.PointsMaterial({color:0x00f5c4,size:.11,transparent:true,opacity:.5,sizeAttenuation:true})));
+  const mk = (r,op,c) => new THREE.Mesh(new THREE.TorusGeometry(r,.07,4,80), new THREE.MeshBasicMaterial({color:c,wireframe:true,transparent:true,opacity:op}));
+  const t1=mk(9,.16,0x7b5ea7); t1.position.set(13,-5,-10); scene.add(t1);
+  const t2=mk(6,.09,0x00f5c4); t2.position.set(-13,6,-15); scene.add(t2);
+  const grid=new THREE.GridHelper(100,40,0x1a1a2e,0x0d0d1a);
+  grid.position.y=-14; grid.material.transparent=true; grid.material.opacity=.5; scene.add(grid);
+  let mx=0,my=0;
+  document.addEventListener('mousemove',e=>{mx=(e.clientX/innerWidth-.5)*2;my=(e.clientY/innerHeight-.5)*2;});
+  function resize(){renderer.setSize(innerWidth,innerHeight);camera.aspect=innerWidth/innerHeight;camera.updateProjectionMatrix();}
+  window.addEventListener('resize',resize); resize();
+  let tick=0;
+  (function loop(){
+    requestAnimationFrame(loop); tick+=.008;
+    for(let i=0;i<N;i++){pos[i*3+1]+=spd[i];if(pos[i*3+1]>30)pos[i*3+1]=-30;}
+    geo.attributes.position.needsUpdate=true;
+    t1.rotation.x=tick*.18;t1.rotation.y=tick*.1;t2.rotation.x=-tick*.12;t2.rotation.z=tick*.15;
+    camera.position.x+=(mx*2-camera.position.x)*.04;camera.position.y+=(-my*1.5-camera.position.y)*.04;
+    camera.lookAt(0,0,0); renderer.render(scene,camera);
+  })();
+})();
+
+// ── Config ────────────────────────────────────────────────────────────────────
+const API = 'http://localhost:8000';
+const TIMEOUT_MS = 15000; // 15s timeout
+
+// ── Demo data ─────────────────────────────────────────────────────────────────
+const DEMO_SCORE = '73';
+const DEMO_ADVICE = `✅ Points forts identifiés :
+• Expérience solide en développement Python (5 ans)
+• Maîtrise des frameworks FastAPI et Django
+• Bonne connaissance des bases de données SQL/NoSQL
+
+⚠️ Points à améliorer :
+• Ajouter les mots-clés manquants : "microservices", "Docker", "CI/CD"
+• Quantifier vos réalisations (ex: "optimisé les performances de 40%")
+• Mettre en avant vos compétences cloud (AWS / GCP / Azure)
+
+💡 Recommandations prioritaires :
+• Réorganiser la section compétences pour la faire apparaître en premier
+• Ajouter un résumé professionnel de 3-4 lignes en haut du CV
+• Inclure des liens vers vos projets GitHub pertinents`;
+
+const DEMO_CV = `# Jean Dupont
+**Développeur Backend Senior** | Paris, France
+jean.dupont@email.com | github.com/jeandupont
+
+---
+
+## Résumé Professionnel
+Développeur backend avec 5 ans d'expertise Python et architectures microservices. Spécialisé dans la création d'APIs performantes avec FastAPI et le déploiement cloud AWS. Passionné par les solutions scalables et les bonnes pratiques DevOps.
+
+---
+
+## Compétences Techniques
+**Langages :** Python (expert), JavaScript, SQL
+**Frameworks :** FastAPI, Django, Flask
+**DevOps :** Docker, Kubernetes, CI/CD (GitHub Actions), AWS
+**Bases de données :** PostgreSQL, MongoDB, Redis
+
+---
+
+## Expériences
+
+### Lead Développeur Backend — TechCorp (2021–présent)
+- Conception de 12 microservices traitant 2M+ requêtes/jour
+- Réduction latence API de 40% par optimisation des requêtes SQL
+- Pipeline CI/CD : temps de déploiement réduit de 3h à 15min
+
+### Développeur Python — StartupXYZ (2019–2021)
+- Développement de l'API REST principale (FastAPI + PostgreSQL)
+- Intégration systèmes de paiement (Stripe, PayPal)
+
+---
+
+## Formation
+**Master Informatique** — Université Paris-Saclay (2019)`;
+
+// ── Helpers ───────────────────────────────────────────────────────────────────
+function setLoad(id, on) { document.getElementById('load-'+id).classList.toggle('on', on); }
+function setErr(id, msg) { const el=document.getElementById('err-'+id); el.textContent=msg; el.classList.toggle('on',!!msg); }
+function setDemo(id, on) {
+  document.getElementById('demo-'+id).classList.toggle('on', on);
+  document.getElementById('demo-pill').classList.toggle('on', on);
+}
+function esc(s) { return s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
+function clearResults() {
+  document.getElementById('empty')?.remove();
+  document.querySelectorAll('.score-card,.reco-card,.cv-card').forEach(e=>e.remove());
+}
+
+// fetch with timeout → throws on timeout so catch block triggers demo
+function fetchWithTimeout(url, opts, ms) {
+  return new Promise((resolve, reject) => {
+    const timer = setTimeout(() => reject(new Error('timeout')), ms);
+    fetch(url, opts)
+      .then(r => { clearTimeout(timer); resolve(r); })
+      .catch(e => { clearTimeout(timer); reject(e); });
+  });
+}
+
+function validate() {
+  if (!fileInput.files[0]) return 'Veuillez sélectionner un fichier PDF.';
+  if (!document.getElementById('job-desc').value.trim()) return 'Veuillez saisir une description de poste.';
+  return null;
+}
+
+// ── Tabs ──────────────────────────────────────────────────────────────────────
+document.querySelectorAll('.tab').forEach(t => {
+  t.addEventListener('click', () => {
+    document.querySelectorAll('.tab').forEach(x=>x.classList.remove('active'));
+    document.querySelectorAll('.tab-pane').forEach(x=>x.classList.remove('active'));
+    t.classList.add('active');
+    document.getElementById('pane-'+t.dataset.tab).classList.add('active');
+  });
+});
+
+// ── Dropzone ──────────────────────────────────────────────────────────────────
+const fileInput = document.getElementById('cv-file');
+const fileLabel = document.getElementById('file-name');
+const dz = document.getElementById('dropzone');
+fileInput.addEventListener('change', ()=>{ if(fileInput.files[0]) fileLabel.textContent='✓ '+fileInput.files[0].name; });
+dz.addEventListener('dragover', e=>{e.preventDefault();dz.classList.add('over');});
+dz.addEventListener('dragleave', ()=>dz.classList.remove('over'));
+dz.addEventListener('drop', e=>{
+  e.preventDefault(); dz.classList.remove('over');
+  const f=e.dataTransfer.files[0];
+  if(f?.type==='application/pdf'){
+    const dt=new DataTransfer();dt.items.add(f);
+    fileInput.files=dt.files; fileLabel.textContent='✓ '+f.name;
+  }
+});
+
+// ── Render score ──────────────────────────────────────────────────────────────
+function showScore(score, advice) {
+  clearResults();
+  const n=parseInt(score), C=314, offset=C-(n/100)*C;
+  const color=n>=70?'#00f5c4':n>=45?'#f5c400':'#ff4b6e';
+  const label=n>=70?'Excellent matching !':n>=45?'Matching modéré':'Faible compatibilité';
+  const sub=n>=70?'Votre profil correspond bien à cette offre.':n>=45?'Des améliorations ciblées sont recommandées.':'Revoyez les mots-clés et compétences manquants.';
+  document.getElementById('results').insertAdjacentHTML('afterbegin', `
+    <div class="score-card">
+      <div class="ring-wrap">
+        <svg width="108" height="108" viewBox="0 0 108 108">
+          <circle class="ring-bg" cx="54" cy="54" r="48" fill="none" stroke-width="5.5"/>
+          <circle class="ring-fg" id="ring-fg" cx="54" cy="54" r="48" fill="none" stroke-width="5.5"
+            stroke="${color}" stroke-dasharray="${C}" stroke-dashoffset="${C}"/>
+        </svg>
+        <div class="ring-label">
+          <span class="ring-num" id="ring-num" style="color:${color}">0</span>
+          <span class="ring-unit">/ 100</span>
+        </div>
+      </div>
+      <div class="score-meta"><h3>${label}</h3><p>${sub}</p></div>
+    </div>
+    <div class="reco-card">
+      <div class="reco-head">// Recommandations IA</div>
+      <div class="reco-body">${esc(advice)}</div>
+    </div>
+  `);
+  requestAnimationFrame(()=>{ document.getElementById('ring-fg').style.strokeDashoffset=offset; });
+  let cur=0; const step=Math.ceil(n/55);
+  const timer=setInterval(()=>{ cur=Math.min(cur+step,n); document.getElementById('ring-num').textContent=cur; if(cur>=n)clearInterval(timer); },18);
+}
+
+// ── Render CV ─────────────────────────────────────────────────────────────────
+function showCV(md) {
+  clearResults();
+  document.getElementById('results').insertAdjacentHTML('afterbegin', `
+    <div class="cv-card">
+      <div class="cv-head"><span>// CV Optimisé</span><button class="btn-copy" id="btn-copy">Copier Markdown</button></div>
+      <div class="cv-body">${esc(md)}</div>
+    </div>
+  `);
+  document.getElementById('btn-copy').addEventListener('click', ()=>{
+    navigator.clipboard.writeText(md).then(()=>{
+      document.getElementById('btn-copy').textContent='Copié ✓';
+      setTimeout(()=>document.getElementById('btn-copy').textContent='Copier Markdown',2000);
+    });
+  });
+}
+
+// ── Analyze ───────────────────────────────────────────────────────────────────
+document.getElementById('btn-analyze').addEventListener('click', async () => {
+  setErr('analyze',''); setDemo('analyze',false);
+  const err=validate(); if(err){setErr('analyze',err);return;}
+  const btn=document.getElementById('btn-analyze');
+  btn.disabled=true; setLoad('analyze',true);
+  try {
+    const fd=new FormData();
+    fd.append('file', fileInput.files[0]);
+    fd.append('job_description', document.getElementById('job-desc').value.trim());
+    console.log('📤 Envoi vers', API+'/analyze');
+    const r = await fetchWithTimeout(API+'/analyze', {method:'POST',body:fd}, TIMEOUT_MS);
+    console.log('📥 Status:', r.status);
+    const d = await r.json();
+    console.log('📦 Réponse:', d);
+    if(d.error) throw new Error(d.error);
+    showScore(d.score, d.recommendations);
+  } catch(ex) {
+    console.error('❌ Erreur:', ex.message);
+    showScore(DEMO_SCORE, DEMO_ADVICE);
+    setDemo('analyze', true);
+  } finally {
+    btn.disabled=false; setLoad('analyze',false);
+  }
+});
+
+// ── Generate ──────────────────────────────────────────────────────────────────
+document.getElementById('btn-generate').addEventListener('click', async () => {
+  setErr('generate',''); setDemo('generate',false);
+  const err=validate(); if(err){setErr('generate',err);return;}
+  const btn=document.getElementById('btn-generate');
+  btn.disabled=true; setLoad('generate',true);
+  try {
+    const fd=new FormData();
+    fd.append('file', fileInput.files[0]);
+    fd.append('job_description', document.getElementById('job-desc').value.trim());
+    const r = await fetchWithTimeout(API+'/generate-cv', {method:'POST',body:fd}, TIMEOUT_MS);
+    const d = await r.json();
+    if(d.error) throw new Error(d.error);
+    showCV(d.revised_cv_markdown);
+  } catch(ex) {
+    showCV(DEMO_CV);
+    setDemo('generate', true);
+  } finally {
+    btn.disabled=false; setLoad('generate',false);
+  }
+});
+</script>
+</body>
+</html>
