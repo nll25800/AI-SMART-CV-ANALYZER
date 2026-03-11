@@ -4,7 +4,7 @@ Interface web 3D pour analyser et optimiser vos CVs grâce à l'IA.
 
 ---
 
-## 📁 Structure du projet
+##  Structure du projet
 
 ```
 AI Smart CV Analyzer/
@@ -20,7 +20,7 @@ AI Smart CV Analyzer/
 
 ---
 
-## ⚙️ Installation
+##  Installation
 
 ### 1. Cloner / ouvrir le projet
 
@@ -56,7 +56,7 @@ Obtenir une clé gratuite : [console.groq.com](https://console.groq.com)
 
 ---
 
-## 🚀 Lancer l'application
+##  Lancer l'application
 
 ```bash
 uvicorn main:app --reload
@@ -68,11 +68,11 @@ Puis ouvre dans ton navigateur :
 http://localhost:8000
 ```
 
-> ⚠️ Ne pas ouvrir `cv-optimizer.html` directement — toujours passer par `http://localhost:8000`
+>  Ne pas ouvrir `cv-optimizer.html` directement — toujours passer par `http://localhost:8000`
 
 ---
 
-## 🎯 Fonctionnalités
+##  Fonctionnalités
 
 | Fonctionnalité | Description |
 |---|---|
@@ -110,7 +110,7 @@ http://localhost:8000
 
 ---
 
-## 🤖 Modèles IA utilisés
+##  Modèles IA utilisés
 
 Le projet utilise **Groq** comme provider LLM (gratuit) :
 
@@ -123,7 +123,7 @@ Le projet utilise **Groq** comme provider LLM (gratuit) :
 
 ---
 
-## 🛠️ Stack technique
+##  Stack technique
 
 - **Backend** — Python, FastAPI, Docling (extraction PDF)
 - **LLM** — Groq API (llama-3.3-70b)
@@ -132,7 +132,7 @@ Le projet utilise **Groq** comme provider LLM (gratuit) :
 
 ---
 
-## 🐛 Problèmes fréquents
+##  Problèmes fréquents
 
 **L'interface ne s'affiche pas / rien ne se passe**
 → Vérifier que uvicorn tourne et ouvrir `http://localhost:8000`
@@ -143,5 +143,8 @@ Le projet utilise **Groq** comme provider LLM (gratuit) :
 **Error 404 sur `/`**
 → Vérifier que `cv-optimizer.html` est bien dans le même dossier que `main.py`
 
+<<<<<<< HEAD
 **Le score s'affiche mais les recommandations sont vides**
 → Vérifier la clé `GROQ_API_KEY` dans `.env`
+=======
+>>>>>>> 7ff0c5f (docs: sauvegarde avant synchronisation)
