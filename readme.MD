@@ -1,4 +1,4 @@
-# 🤖 AI Smart CV Analyzer
+#  AI Smart CV Analyzer
 
 Interface web 3D pour analyser et optimiser vos CVs grâce à l'IA.
 
