@@ -143,8 +143,3 @@ Le projet utilise **Groq** comme provider LLM (gratuit) :
 **Error 404 sur `/`**
 → Vérifier que `cv-optimizer.html` est bien dans le même dossier que `main.py`
 
-<<<<<<< HEAD
-**Le score s'affiche mais les recommandations sont vides**
-→ Vérifier la clé `GROQ_API_KEY` dans `.env`
-=======
->>>>>>> 7ff0c5f (docs: sauvegarde avant synchronisation)
