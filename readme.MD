@@ -132,14 +132,3 @@ Le projet utilise **Groq** comme provider LLM (gratuit) :
 
 ---
 
-##  Problèmes fréquents
-
-**L'interface ne s'affiche pas / rien ne se passe**
-→ Vérifier que uvicorn tourne et ouvrir `http://localhost:8000`
-
-**Error 429 - Rate limit**
-→ Limite Groq atteinte, attendre 2-3 minutes
-
-**Error 404 sur `/`**
-→ Vérifier que `cv-optimizer.html` est bien dans le même dossier que `main.py`
-
