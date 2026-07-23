@@ -10,4 +10,6 @@ pyvenv.cfg
 .env
 
 # Fichiers temporaires de scan
-temp_*.pdf
+temp_*
+
+.vscode/
