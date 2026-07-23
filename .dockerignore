@@ -1,0 +1,13 @@
+.venv/
+venv/
+__pycache__/
+Backend/__pycache__/
+.env
+.git/
+.gitignore
+.vscode/
+*.pyc
+temp_*
+Backend/temp_*
+Dockerfile
+.dockerignore
