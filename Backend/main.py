@@ -1,7 +1,10 @@
 from fastapi import FastAPI, UploadFile, File, Form, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse, Response
-from docling.document_converter import DocumentConverter
+from docling.datamodel.base_models import InputFormat
+from docling.datamodel.pipeline_options import PdfPipelineOptions
+from docling.document_converter import DocumentConverter, PdfFormatOption
+from docling.backend.pypdfium2_backend import PyPdfiumDocumentBackend
 import shutil, os, traceback
 
 from engine import get_matching_score
@@ -18,7 +21,20 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-converter = DocumentConverter()
+# OCR et détection de tableaux désactivés : réduit fortement la RAM.
+# Hypothèse retenue pour la pré-prod : CV en PDF texte natif (pas de scans).
+pdf_options = PdfPipelineOptions()
+pdf_options.do_ocr = False
+pdf_options.do_table_structure = False
+
+converter = DocumentConverter(
+    format_options={
+        InputFormat.PDF: PdfFormatOption(
+            pipeline_options=pdf_options,
+            backend=PyPdfiumDocumentBackend,
+        )
+    }
+)
 
 # ── Frontend ──────────────────────────────────────────────────────────────────
 @app.get("/")
