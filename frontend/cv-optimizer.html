@@ -375,7 +375,7 @@ footer{border-top:1px solid var(--border);padding:1.2rem 0;font-size:0.62rem;col
 })();
 
 // ── Config ────────────────────────────────────────────────────────────────────
-const API='http://localhost:8000';
+const API=window.location.origin;
 const TIMEOUT_MS=15000;
 let currentCvData=null; // stocke l'objet CVData (JSON structuré) généré pour le PDF
 
