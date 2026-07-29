@@ -3,6 +3,7 @@ import json
 from dotenv import load_dotenv
 from langchain_groq import ChatGroq
 from langchain_core.prompts import ChatPromptTemplate
+from langchain_core.messages import SystemMessage, HumanMessage, AIMessage
 from pydantic import ValidationError
 
 from cv_schema import CVData
@@ -151,26 +152,30 @@ def generate_revised_cv_structured(cv_text: str, job_desc: str) -> CVData:
     system_prompt = _build_system_prompt()
     user_prompt = _build_user_prompt(cv_text, job_desc)
 
+    # IMPORTANT : on utilise des objets Message directs (pas ChatPromptTemplate).
+    # ChatPromptTemplate interprète les accolades { } comme des variables de template
+    # à substituer -> or notre prompt système contient un JSON Schema plein
+    # d'accolades, ce qui casse le parsing de template. Comme on a déjà construit
+    # les strings finales via des f-strings Python, on n'a pas besoin du templating
+    # de LangChain : on invoque le modèle directement avec les messages.
     messages = [
-        ("system", system_prompt),
-        ("user", user_prompt),
+        SystemMessage(content=system_prompt),
+        HumanMessage(content=user_prompt),
     ]
 
     last_error = None
 
     for attempt in range(1, MAX_RETRIES + 1):
-        prompt = ChatPromptTemplate.from_messages(messages)
-        chain = prompt | llm_json
-        response = chain.invoke({})
+        response = llm_json.invoke(messages)
         raw_content = response.content
 
         try:
             raw_json = json.loads(raw_content)
         except json.JSONDecodeError as e:
             last_error = f"Réponse non-JSON malgré le mode json_object : {e}"
-            messages.append(("assistant", raw_content))
-            messages.append(("user", f"Ta réponse n'était pas un JSON valide ({e}). "
-                                      f"Réponds à nouveau, UNIQUEMENT avec le JSON, sans texte autour."))
+            messages.append(AIMessage(content=raw_content))
+            messages.append(HumanMessage(content=f"Ta réponse n'était pas un JSON valide ({e}). "
+                                                   f"Réponds à nouveau, UNIQUEMENT avec le JSON, sans texte autour."))
             continue
 
         try:
@@ -180,11 +185,11 @@ def generate_revised_cv_structured(cv_text: str, job_desc: str) -> CVData:
             last_error = str(e)
             # On renvoie l'erreur Pydantic exacte au LLM pour qu'il corrige précisément
             # les champs fautifs, plutôt que de tout regénérer à l'aveugle.
-            messages.append(("assistant", raw_content))
-            messages.append(("user", f"Ton JSON ne respecte pas le schéma attendu. "
-                                      f"Voici l'erreur de validation exacte :\n{e}\n\n"
-                                      f"Corrige UNIQUEMENT les champs en erreur et renvoie "
-                                      f"le JSON complet corrigé, toujours conforme au schéma."))
+            messages.append(AIMessage(content=raw_content))
+            messages.append(HumanMessage(content=f"Ton JSON ne respecte pas le schéma attendu. "
+                                                   f"Voici l'erreur de validation exacte :\n{e}\n\n"
+                                                   f"Corrige UNIQUEMENT les champs en erreur et renvoie "
+                                                   f"le JSON complet corrigé, toujours conforme au schéma."))
 
     raise ValueError(
         f"Impossible de générer un CV structuré valide après {MAX_RETRIES} tentatives. "
