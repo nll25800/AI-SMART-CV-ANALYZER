@@ -377,7 +377,42 @@ footer{border-top:1px solid var(--border);padding:1.2rem 0;font-size:0.62rem;col
 // ── Config ────────────────────────────────────────────────────────────────────
 const API='http://localhost:8000';
 const TIMEOUT_MS=15000;
-let currentCvMarkdown=''; // stocke le MD généré pour PDF
+let currentCvData=null; // stocke l'objet CVData (JSON structuré) généré pour le PDF
+
+// Construit un aperçu texte lisible à partir de l'objet CVData structuré
+function renderCvDataAsText(d){
+  const lines=[];
+  lines.push(d.name||'');
+  if(d.title) lines.push(d.title);
+  if(d.contact?.length) lines.push(d.contact.join('  |  '));
+  lines.push('');
+  if(d.profil){ lines.push('PROFIL'); lines.push(d.profil); lines.push(''); }
+  if(d.experiences?.length){
+    lines.push('EXPÉRIENCES');
+    d.experiences.forEach(exp=>{
+      const head=[exp.poste, exp.entreprise].filter(Boolean).join(' — ') + (exp.dates?`  (${exp.dates})`:'');
+      lines.push(head);
+      (exp.bullets||[]).forEach(b=>lines.push('  • '+b));
+      lines.push('');
+    });
+  }
+  if(d.formation?.length){
+    lines.push('FORMATION');
+    d.formation.forEach(f=>{
+      const head=[f.diplome, f.etablissement].filter(Boolean).join(' — ') + (f.date?`  (${f.date})`:'');
+      lines.push(head);
+    });
+    lines.push('');
+  }
+  if(d.savoir_etre?.length){ lines.push('SAVOIR-ÊTRE'); lines.push(d.savoir_etre.join(', ')); lines.push(''); }
+  if(d.competences?.length){
+    lines.push('COMPÉTENCES');
+    d.competences.forEach(cat=>lines.push(`${cat.categorie} : ${(cat.items||[]).join(', ')}`));
+    lines.push('');
+  }
+  if(d.langues?.length){ lines.push('LANGUES'); lines.push(d.langues.join(', ')); }
+  return lines.join('\n');
+}
 
 // ── Toast ─────────────────────────────────────────────────────────────────────
 function showToast(msg){
@@ -499,18 +534,18 @@ function showScore(score,advice){
 }
 
 // ── CV render (Markdown + PDF section) ───────────────────────────────────────
-function showCV(md){
+function showCV(cvData){
   clearResults();
-  currentCvMarkdown=md;
+  currentCvData=cvData;
   document.getElementById('results').insertAdjacentHTML('afterbegin',`
     <div class="cv-card">
       <div class="cv-head">
         <span>// CV Optimisé</span>
         <div class="cv-head-actions">
-          <button class="btn-copy" id="btn-copy">Copier Markdown</button>
+          <button class="btn-copy" id="btn-copy">Copier JSON</button>
         </div>
       </div>
-      <div class="cv-body">${esc(md)}</div>
+      <div class="cv-body">${esc(renderCvDataAsText(cvData))}</div>
       <div class="pdf-section">
         <div class="pdf-section-title">⬇ Télécharger en PDF</div>
         <div class="pdf-row">
@@ -523,9 +558,9 @@ function showCV(md){
   `);
 
   document.getElementById('btn-copy').addEventListener('click',()=>{
-    navigator.clipboard.writeText(md).then(()=>{
+    navigator.clipboard.writeText(JSON.stringify(cvData,null,2)).then(()=>{
       document.getElementById('btn-copy').textContent='Copié ✓';
-      setTimeout(()=>document.getElementById('btn-copy').textContent='Copier Markdown',2000);
+      setTimeout(()=>document.getElementById('btn-copy').textContent='Copier JSON',2000);
     });
   });
 
@@ -543,7 +578,7 @@ async function downloadPDF(){
 
   try{
     const fd=new FormData();
-    fd.append('cv_markdown', currentCvMarkdown);
+    fd.append('cv_data', JSON.stringify(currentCvData));
     // Ajouter la photo si présente
     if(photoInput.files[0]){
       fd.append('photo', photoInput.files[0]);
@@ -602,7 +637,7 @@ document.getElementById('btn-generate').addEventListener('click',async()=>{
     const r=await fetchWithTimeout(API+'/generate-cv',{method:'POST',body:fd},TIMEOUT_MS);
     const d=await r.json();
     if(d.error)throw new Error(d.error);
-    showCV(d.revised_cv_markdown);
+    showCV(d.revised_cv_data);
     showToast('✓ CV généré — vous pouvez maintenant le télécharger en PDF !');
   }catch(ex){setErr('generate','⚠ '+ex.message);}
   finally{btn.disabled=false;setLoad('generate',false);}
