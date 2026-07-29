@@ -1,16 +1,15 @@
 from fastapi import FastAPI, UploadFile, File, Form, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse, Response
-from docling.datamodel.base_models import InputFormat
-from docling.datamodel.pipeline_options import PdfPipelineOptions
-from docling.document_converter import DocumentConverter, PdfFormatOption
-from docling.backend.pypdfium2_backend import PyPdfiumDocumentBackend
+from docling.document_converter import DocumentConverter
 import shutil, os, traceback
 
 from engine import get_matching_score
-from recommender import get_ai_advice, generate_revised_cv
+from recommender import get_ai_advice, generate_revised_cv_structured
 from scraper import search_jobs
 from cv_pdf_generator import generate_pdf
+from cv_schema import CVData
+from pydantic import ValidationError
 
 app = FastAPI(title="AI CV Expert & Optimizer")
 
@@ -21,20 +20,7 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-# OCR et détection de tableaux désactivés : réduit fortement la RAM.
-# Hypothèse retenue pour la pré-prod : CV en PDF texte natif (pas de scans).
-pdf_options = PdfPipelineOptions()
-pdf_options.do_ocr = False
-pdf_options.do_table_structure = False
-
-converter = DocumentConverter(
-    format_options={
-        InputFormat.PDF: PdfFormatOption(
-            pipeline_options=pdf_options,
-            backend=PyPdfiumDocumentBackend,
-        )
-    }
-)
+converter = DocumentConverter()
 
 # ── Frontend ──────────────────────────────────────────────────────────────────
 @app.get("/")
@@ -68,17 +54,20 @@ async def analyze_cv(file: UploadFile = File(...), job_description: str = Form(.
         if os.path.exists(temp_path):
             os.remove(temp_path)
 
-# ── Generate CV (Markdown) ────────────────────────────────────────────────────
+# ── Generate CV (JSON structuré) ──────────────────────────────────────────────
 @app.post("/generate-cv")
 async def rewrite_cv(file: UploadFile = File(...), job_description: str = Form(...)):
     temp_path = f"temp_gen_{file.filename}"
     with open(temp_path, "wb") as buffer:
         shutil.copyfileobj(file.file, buffer)
     try:
-        result         = converter.convert(temp_path)
-        cv_text        = result.document.export_to_markdown()
-        new_cv_markdown = generate_revised_cv(cv_text, job_description)
-        return {"status": "success", "revised_cv_markdown": new_cv_markdown}
+        result   = converter.convert(temp_path)
+        cv_text  = result.document.export_to_markdown()
+        cv_data  = generate_revised_cv_structured(cv_text, job_description)
+        return {"status": "success", "revised_cv_data": cv_data.model_dump()}
+    except ValueError as e:
+        # Échec après les tentatives de retry dans generate_revised_cv_structured
+        return {"error": str(e)}
     except Exception as e:
         return {"error": str(e)}
     finally:
@@ -88,20 +77,39 @@ async def rewrite_cv(file: UploadFile = File(...), job_description: str = Form(.
 # ── Generate CV (PDF) ─────────────────────────────────────────────────────────
 @app.post("/generate-cv-pdf")
 async def generate_cv_pdf(
-    cv_markdown: str = Form(...),
+    cv_data: str = Form(...),
     photo: UploadFile = File(None)
 ):
     """
-    Reçoit le markdown du CV + photo optionnelle.
+    Reçoit le CV structuré (JSON, conforme à CVData) en string + photo optionnelle.
     Retourne un PDF téléchargeable.
     """
     try:
+        # On valide le JSON reçu contre le schéma avant de le passer au générateur PDF.
+        # Ça évite qu'un JSON malformé (venant d'un bug frontend, ou d'une manip
+        # directe de l'API) fasse planter reportlab avec une erreur obscure.
+        try:
+            cv_data_obj = CVData.model_validate_json(cv_data)
+        except ValidationError as e:
+            raise HTTPException(status_code=422, detail=f"cv_data invalide : {e}")
+
+        # Logs de diagnostic explicites : on veut savoir précisément si une
+        # photo a été reçue, avec quel nom/taille, pour identifier si le
+        # problème vient du frontend (rien n'est envoyé) ou d'ailleurs.
+        if photo is None:
+            print("[PDF] Aucun champ 'photo' reçu dans la requête (photo=None)")
+        elif not photo.filename:
+            print(f"[PDF] Champ 'photo' reçu mais vide (filename={photo.filename!r})")
+        else:
+            print(f"[PDF] Photo reçue : filename={photo.filename!r}, content_type={photo.content_type!r}")
+
         photo_bytes = None
         if photo and photo.filename:
             photo_bytes = await photo.read()
+            print(f"[PDF] Photo lue : {len(photo_bytes)} bytes")
 
-        print(f"[PDF] Génération pour {len(cv_markdown)} chars de markdown")
-        pdf_bytes = generate_pdf(cv_markdown, photo_bytes)
+        print(f"[PDF] Génération pour le CV de {cv_data_obj.name}")
+        pdf_bytes = generate_pdf(cv_data_obj.model_dump(), photo_bytes)
         print(f"[PDF] Généré : {len(pdf_bytes)} bytes")
 
         if not pdf_bytes:
