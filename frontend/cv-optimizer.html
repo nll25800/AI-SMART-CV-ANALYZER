@@ -167,6 +167,21 @@ footer{border-top:1px solid var(--border);padding:1.2rem 0;font-size:0.62rem;col
 .btn-consent-accept:disabled{opacity:0.35;cursor:not-allowed;}
 .btn-consent-refuse{background:transparent;color:var(--muted);border:1px solid var(--border);}
 .btn-consent-refuse:hover{color:var(--text);border-color:rgba(255,255,255,0.2);}
+/* Recruiter modal */
+.recruiter-overlay{position:fixed;inset:0;background:rgba(0,0,0,0.75);backdrop-filter:blur(4px);z-index:2100;display:none;align-items:center;justify-content:center;padding:1.5rem;}
+.recruiter-overlay.show{display:flex;}
+.recruiter-modal{background:#0d0d18;border:1px solid rgba(0,245,196,0.3);border-radius:8px;max-width:480px;width:100%;padding:2rem 1.75rem 1.5rem;box-shadow:0 20px 60px rgba(0,0,0,0.6);animation:fadeUp 0.35s ease both;text-align:center;}
+.recruiter-icon{font-size:1.8rem;margin-bottom:0.75rem;}
+.recruiter-title{font-family:'Syne',sans-serif;font-weight:800;font-size:1.05rem;margin-bottom:0.9rem;color:var(--text);}
+.recruiter-title span{color:var(--accent);}
+.recruiter-body{font-size:0.8rem;line-height:1.85;color:var(--muted);margin-bottom:1.4rem;text-align:left;}
+.recruiter-body a{color:var(--accent);text-decoration:underline;}
+.recruiter-contact{display:flex;flex-direction:column;gap:0.4rem;margin-bottom:1.4rem;font-size:0.78rem;}
+.recruiter-contact a{color:var(--accent);text-decoration:none;font-weight:400;}
+.recruiter-contact a:hover{text-decoration:underline;}
+.btn-recruiter-close{font-family:'DM Mono',monospace;font-size:0.72rem;letter-spacing:0.1em;text-transform:uppercase;padding:0.7rem 1.75rem;border-radius:3px;cursor:pointer;background:var(--accent);color:var(--bg);font-weight:700;border:none;transition:box-shadow 0.2s,transform 0.12s;}
+.btn-recruiter-close:hover{box-shadow:0 0 20px rgba(0,245,196,0.4);}
+.btn-recruiter-close:active{transform:scale(0.97);}
 </style>
 </head>
 <body>
@@ -306,6 +321,19 @@ footer{border-top:1px solid var(--border);padding:1.2rem 0;font-size:0.62rem;col
   </div>
 </div>
 
+<div class="recruiter-overlay" id="recruiter-overlay">
+  <div class="recruiter-modal">
+    <div class="recruiter-icon">👋</div>
+    <div class="recruiter-title">Un petit mot avant de <span>continuer</span></div>
+    <div class="recruiter-body" id="recruiter-body"></div>
+    <div class="recruiter-contact">
+      <a href="mailto:ettorchenassim@gmail.com">✉ ettorchenassim@gmail.com</a>
+      <a href="tel:0753861356">📞 07 53 86 13 56</a>
+    </div>
+    <button class="btn-recruiter-close" id="recruiter-close">Fermer</button>
+  </div>
+</div>
+
 <div class="toast" id="toast"></div>
 
 <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
@@ -373,6 +401,25 @@ footer{border-top:1px solid var(--border);padding:1.2rem 0;font-size:0.62rem;col
   btnAccept.addEventListener('click', () => { if (!btnAccept.disabled) closeWith('accepted'); });
   btnRefuse.addEventListener('click', () => closeWith('refused'));
 })();
+
+// ── Message recruteur (affiché après analyse / génération réussie) ────────────
+function showRecruiterModal(context){
+  const overlay = document.getElementById('recruiter-overlay');
+  const body    = document.getElementById('recruiter-body');
+
+  const base = `Si vous êtes arrivé jusqu'ici, sachez que j'ai utilisé cette application pour
+    postuler à votre offre. Je suis ouvert aux propositions en <strong style="color:var(--text)">CDI
+    dans le domaine de l'IA et du DevOps</strong>. N'hésitez pas à me contacter directement ci-dessous.`;
+
+  const downloadReminder = ` Et n'oubliez pas de <strong style="color:var(--text)">télécharger le CV généré</strong> !`;
+
+  body.innerHTML = base + (context === 'generate' ? downloadReminder : '');
+  overlay.classList.add('show');
+}
+
+document.getElementById('recruiter-close').addEventListener('click', () => {
+  document.getElementById('recruiter-overlay').classList.remove('show');
+});
 
 // ── Config ────────────────────────────────────────────────────────────────────
 const API=window.location.origin;
@@ -620,6 +667,7 @@ document.getElementById('btn-analyze').addEventListener('click',async()=>{
     const d=await r.json();
     if(d.error)throw new Error(d.error);
     showScore(d.score,d.recommendations);
+    showRecruiterModal('analyze');
   }catch(ex){setErr('analyze','⚠ '+ex.message);}
   finally{btn.disabled=false;setLoad('analyze',false);}
 });
@@ -639,6 +687,7 @@ document.getElementById('btn-generate').addEventListener('click',async()=>{
     if(d.error)throw new Error(d.error);
     showCV(d.revised_cv_data);
     showToast('✓ CV généré — vous pouvez maintenant le télécharger en PDF !');
+    showRecruiterModal('generate');
   }catch(ex){setErr('generate','⚠ '+ex.message);}
   finally{btn.disabled=false;setLoad('generate',false);}
 });
