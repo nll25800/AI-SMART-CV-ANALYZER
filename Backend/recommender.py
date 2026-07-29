@@ -16,7 +16,7 @@ if not api_key:
     raise ValueError("ERREUR : La clé GROQ_API_KEY n'est pas définie dans le fichier .env")
 
 llm = ChatGroq(
-    model_name="llama-3.3-70b-versatile",
+    model_name="openai/gpt-oss-120b",
     temperature=0.5,
     groq_api_key=api_key
 )
@@ -25,7 +25,7 @@ llm = ChatGroq(
 # Rappel : ça garantit un JSON syntaxiquement valide, PAS la conformité
 # à notre schéma précis -> d'où la validation Pydantic juste après.
 llm_json = ChatGroq(
-    model_name="llama-3.3-70b-versatile",
+    model_name="openai/gpt-oss-120b",
     temperature=0.3,  # un peu plus bas : on veut de la précision structurelle, pas de la créativité
     groq_api_key=api_key,
     model_kwargs={"response_format": {"type": "json_object"}}
