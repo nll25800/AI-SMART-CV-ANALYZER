@@ -148,6 +148,25 @@ textarea:focus,input[type=text]:focus{border-color:rgba(0,245,196,0.5);box-shado
 .toast{position:fixed;bottom:2rem;right:2rem;z-index:999;background:rgba(0,245,196,0.12);border:1px solid rgba(0,245,196,0.4);color:var(--accent);font-size:0.72rem;letter-spacing:0.08em;padding:0.75rem 1.25rem;border-radius:4px;opacity:0;transform:translateY(10px);transition:opacity 0.3s,transform 0.3s;pointer-events:none;}
 .toast.show{opacity:1;transform:none;}
 footer{border-top:1px solid var(--border);padding:1.2rem 0;font-size:0.62rem;color:rgba(232,232,240,0.2);letter-spacing:0.1em;display:flex;justify-content:space-between;}
+/* Consent modal */
+.consent-overlay{position:fixed;inset:0;background:rgba(0,0,0,0.7);backdrop-filter:blur(4px);z-index:2000;display:none;align-items:flex-end;justify-content:center;padding:1.5rem;}
+.consent-overlay.show{display:flex;}
+@media(min-width:700px){.consent-overlay{align-items:center;}}
+.consent-modal{background:#0d0d18;border:1px solid var(--border);border-radius:8px;max-width:540px;width:100%;padding:1.75rem 1.75rem 1.5rem;box-shadow:0 20px 60px rgba(0,0,0,0.5);animation:fadeUp 0.35s ease both;}
+.consent-title{font-family:'Syne',sans-serif;font-weight:800;font-size:1.05rem;margin-bottom:0.75rem;color:var(--text);}
+.consent-title span{color:var(--accent);}
+.consent-body{font-size:0.75rem;line-height:1.75;color:var(--muted);margin-bottom:1.1rem;}
+.consent-body a{color:var(--accent);text-decoration:underline;}
+.consent-check{display:flex;align-items:flex-start;gap:0.6rem;margin-bottom:1.25rem;cursor:pointer;}
+.consent-check input{margin-top:0.2rem;accent-color:var(--accent);width:15px;height:15px;flex-shrink:0;cursor:pointer;}
+.consent-check span{font-size:0.72rem;color:var(--muted);line-height:1.6;}
+.consent-actions{display:flex;gap:0.75rem;flex-wrap:wrap;}
+.btn-consent{font-family:'DM Mono',monospace;font-size:0.72rem;letter-spacing:0.1em;text-transform:uppercase;padding:0.75rem 1.5rem;border-radius:3px;cursor:pointer;transition:opacity 0.15s,transform 0.12s;border:none;}
+.btn-consent:active{transform:scale(0.97);}
+.btn-consent-accept{background:var(--accent);color:var(--bg);font-weight:700;}
+.btn-consent-accept:disabled{opacity:0.35;cursor:not-allowed;}
+.btn-consent-refuse{background:transparent;color:var(--muted);border:1px solid var(--border);}
+.btn-consent-refuse:hover{color:var(--text);border-color:rgba(255,255,255,0.2);}
 </style>
 </head>
 <body>
@@ -265,6 +284,28 @@ footer{border-top:1px solid var(--border);padding:1.2rem 0;font-size:0.62rem;col
   </footer>
 </div>
 
+<div class="consent-overlay" id="consent-overlay">
+  <div class="consent-modal">
+    <div class="consent-title">🍪 Confidentialité & <span>utilisation des données</span></div>
+    <div class="consent-body">
+      CV.AI traite temporairement le contenu de votre CV, une éventuelle photo, et l'offre
+      d'emploi collée, uniquement pour générer le résultat demandé (score, recommandations, CV
+      optimisé). <strong style="color:var(--text)">Aucune donnée n'est stockée</strong> : tout
+      est supprimé immédiatement après traitement. Le texte est envoyé à un service d'IA tiers
+      (Groq) pour l'analyse. Aucun cookie de suivi n'est utilisé.
+      Détails complets : <a href="/mentions-legales" target="_blank">mentions légales &amp; politique de confidentialité</a>.
+    </div>
+    <label class="consent-check">
+      <input type="checkbox" id="consent-checkbox" />
+      <span>J'ai lu et j'accepte les mentions légales et la politique de confidentialité de ce site.</span>
+    </label>
+    <div class="consent-actions">
+      <button class="btn-consent btn-consent-accept" id="consent-accept" disabled>Accepter</button>
+      <button class="btn-consent btn-consent-refuse" id="consent-refuse">Refuser</button>
+    </div>
+  </div>
+</div>
+
 <div class="toast" id="toast"></div>
 
 <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
@@ -301,6 +342,36 @@ footer{border-top:1px solid var(--border);padding:1.2rem 0;font-size:0.62rem;col
     camera.position.x+=(mx*2-camera.position.x)*.04;camera.position.y+=(-my*1.5-camera.position.y)*.04;
     camera.lookAt(0,0,0);renderer.render(scene,camera);
   })();
+})();
+
+// ── Consentement (mentions légales / confidentialité) ──────────────────────────
+(function(){
+  const STORAGE_KEY = 'cvai_consent';
+  const overlay   = document.getElementById('consent-overlay');
+  const checkbox  = document.getElementById('consent-checkbox');
+  const btnAccept = document.getElementById('consent-accept');
+  const btnRefuse = document.getElementById('consent-refuse');
+
+  let existing = null;
+  try { existing = localStorage.getItem(STORAGE_KEY); } catch(e) {}
+
+  if (!existing) {
+    overlay.classList.add('show');
+  }
+
+  checkbox.addEventListener('change', () => {
+    btnAccept.disabled = !checkbox.checked;
+  });
+
+  function closeWith(choice){
+    try {
+      localStorage.setItem(STORAGE_KEY, JSON.stringify({ choice, date: new Date().toISOString() }));
+    } catch(e) {}
+    overlay.classList.remove('show');
+  }
+
+  btnAccept.addEventListener('click', () => { if (!btnAccept.disabled) closeWith('accepted'); });
+  btnRefuse.addEventListener('click', () => closeWith('refused'));
 })();
 
 // ── Config ────────────────────────────────────────────────────────────────────
