@@ -27,6 +27,10 @@ converter = DocumentConverter()
 async def serve_frontend():
     return FileResponse("../frontend/cv-optimizer.html")
 
+@app.get("/mentions-legales")
+async def serve_legal_page():
+    return FileResponse("../frontend/mentions-legales.html")
+
 # ── Search jobs ───────────────────────────────────────────────────────────────
 @app.get("/search-jobs")
 async def search_jobs_endpoint(domain: str, location: str, results: int = 10):
