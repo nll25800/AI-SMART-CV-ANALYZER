@@ -6,7 +6,9 @@ resource "aws_instance" "cv_analyzer" {
   instance_type          = "t3.small"
   availability_zone      = "eu-west-3c"
   key_name               = "cv-analyzer-key"
-  vpc_security_group_ids = [aws_security_group.launch_wizard_1.id]
+  vpc_security_group_ids = [
+  aws_security_group.launch_wizard_1.id,
+  aws_security_group.allow_k3s_cluster.id]
   subnet_id              = "subnet-0fbcf3069fea87e20"
 
   tags = {
@@ -20,7 +22,7 @@ resource "aws_instance" "cv_analyzer" {
 resource "aws_security_group" "launch_wizard_1" {
   name        = "launch-wizard-1"
   description = "launch-wizard-1 created 2026-07-28T11:54:32.557Z"
-  vpc_id      = "vpc-0d8d5f86a97f739e3"
+  vpc_id      = var.vpc_id
 
 
 }
@@ -84,4 +86,47 @@ resource "aws_vpc_security_group_egress_rule" "allow_all_outbound" {
   security_group_id = aws_security_group.launch_wizard_1.id
   cidr_ipv4         = "0.0.0.0/0"
   ip_protocol       = "-1"
+}
+
+# ------------------------------------------------------------------------------
+# 5. SECURITY GROUP DÉDIÉ AU CLUSTER K3S (trafic interne uniquement)
+# ------------------------------------------------------------------------------
+
+resource "aws_security_group" "allow_k3s_cluster" {
+  name        = "k3s-cluster-internal"                  # <- choisis un nom clair, ex: "k3s-cluster-internal"
+  description = "k3s-for-orchestration"                  # <- décris son rôle en une phrase
+  vpc_id      = var.vpc_id                    # <- ta variable VPC ici
+}
+
+# Port API Kubernetes (server <-> agent, et toi via kubectl)
+resource "aws_vpc_security_group_ingress_rule" "allow_k3s_api" {
+  security_group_id             = aws_security_group.allow_k3s_cluster.id
+  referenced_security_group_id = aws_security_group.allow_k3s_cluster.id  # <- lequel ? (relis mon message précédent)
+  from_port                     = 6443
+  to_port                       = 6443
+  ip_protocol                   = "tcp"
+}
+
+# Réseau des pods entre nœuds (Flannel VXLAN)
+resource "aws_vpc_security_group_ingress_rule" "allow_k3s_vxlan" {
+  security_group_id             = aws_security_group.allow_k3s_cluster.id
+  referenced_security_group_id = aws_security_group.allow_k3s_cluster.id
+  from_port                     = 8472
+  to_port                       = 8472
+  ip_protocol                   = "udp"  # <- pas tcp cette fois, relis la doc plus haut
+}
+
+# Kubelet metrics (server interroge l'agent)
+resource "aws_vpc_security_group_ingress_rule" "allow_k3s_kubelet" {
+  security_group_id             = aws_security_group.allow_k3s_cluster.id
+  referenced_security_group_id = aws_security_group.allow_k3s_cluster.id
+  from_port                     = 10250
+  to_port                       = 10250
+  ip_protocol                   = "tcp"
+}
+
+resource "aws_vpc_security_group_egress_rule" "allow_k3s_egress" {
+  security_group_id             = aws_security_group.allow_k3s_cluster.id
+  referenced_security_group_id = aws_security_group.allow_k3s_cluster.id
+  ip_protocol                   = "-1"
 }
