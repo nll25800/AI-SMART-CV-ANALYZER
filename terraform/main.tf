@@ -130,3 +130,54 @@ resource "aws_vpc_security_group_egress_rule" "allow_k3s_egress" {
   referenced_security_group_id = aws_security_group.allow_k3s_cluster.id
   ip_protocol                   = "-1"
 }
+# ------------------------------------------------------------------------------
+# 6. NŒUD MASTER K3S (CONTROL-PLANE)
+# ------------------------------------------------------------------------------
+resource "aws_instance" "k3s_master" {
+  ami                    = "ami-0e1c4170d9c01184b"
+  instance_type          = "t3.small"
+  availability_zone      = "eu-west-3c"
+  key_name               = "cv-analyzer-key"
+
+  vpc_security_group_ids = [
+  aws_security_group.k3s_master.id,
+  aws_security_group.allow_k3s_cluster.id]
+
+  subnet_id              = "subnet-0fbcf3069fea87e20"
+
+  tags = {
+    Name = "k3s-master"
+  }
+}
+# ------------------------------------------------------------------------------
+# 7. SECURITY GROUP SSH ADMIN — pour le nœud SERVER (k3s control-plane)
+# ------------------------------------------------------------------------------
+
+resource "aws_security_group" "k3s_master" {
+  name        = "k3s_master"
+  description = "k3s_master pour le noeud k3s_master"
+  vpc_id      = var.vpc_id
+}
+
+resource "aws_vpc_security_group_ingress_rule" "allow_my_ssh_e2ic" {
+  security_group_id = aws_security_group.k3s_master.id
+  description        = "EC2 Instance Connect - Paris"
+  cidr_ipv4          = "35.180.112.80/29"   # même plage que pour cv_analyzer
+  from_port          = 22
+  to_port            = 22
+  ip_protocol        = "tcp"
+}
+
+resource "aws_vpc_security_group_ingress_rule" "allow_ssh_my_ip_master" {
+  security_group_id = aws_security_group.k3s_master.id
+  cidr_ipv4          = var.home_ip_address   # ta variable existante, réutilisée
+  from_port          = 22
+  to_port            = 22
+  ip_protocol        = "tcp"
+}
+
+resource "aws_vpc_security_group_egress_rule" "allow_k3s_all_outbound" {
+  security_group_id = aws_security_group.k3s_master.id
+  cidr_ipv4          = "0.0.0.0/0"
+  ip_protocol        = "-1"
+}
