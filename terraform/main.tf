@@ -217,6 +217,21 @@ resource "aws_vpc_security_group_egress_rule" "allow_all_outbound_agent" {
   cidr_ipv4          = "0.0.0.0/0"
   ip_protocol        = "-1"
 }
+resource "aws_vpc_security_group_ingress_rule" "allow_http_agent" {
+  security_group_id = aws_security_group.k3s_agent.id
+  cidr_ipv4          = "0.0.0.0/0"
+  from_port          = 80
+  to_port            = 80
+  ip_protocol        = "tcp"
+}
+
+resource "aws_vpc_security_group_ingress_rule" "allow_https_agent" {
+  security_group_id = aws_security_group.k3s_agent.id
+  cidr_ipv4          = "0.0.0.0/0"
+  from_port          = 443
+  to_port            = 443
+  ip_protocol        = "tcp"
+}
 
 # ------------------------------------------------------------------------------
 # 9. NŒUD AGENT K3S (exécutera l'appli, dans le cluster)
@@ -234,6 +249,11 @@ resource "aws_instance" "k3s_agent" {
   ]
 
   subnet_id = "subnet-0fbcf3069fea87e20"
+
+  root_block_device {
+    volume_size = 20
+    volume_type = "gp3"
+  }
 
   tags = {
     Name = "k3s-agent"
