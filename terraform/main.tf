@@ -181,3 +181,61 @@ resource "aws_vpc_security_group_egress_rule" "allow_k3s_all_outbound" {
   cidr_ipv4          = "0.0.0.0/0"
   ip_protocol        = "-1"
 }
+
+# ------------------------------------------------------------------------------
+# 8. SECURITY GROUP DÉDIÉ — NŒUD AGENT K3S (futur hébergeur de l'appli)
+# ------------------------------------------------------------------------------
+
+resource "aws_security_group" "k3s_agent" {
+  name        = "k3s_agent"
+  description = "Security group pour le noeud agent k3s, accueillera l application via Traefik"
+  vpc_id      = var.vpc_id
+}
+
+# SSH via EC2 Instance Connect (même plage que les autres instances)
+resource "aws_vpc_security_group_ingress_rule" "allow_ssh_e2ic_agent" {
+  security_group_id = aws_security_group.k3s_agent.id
+  description        = "EC2 Instance Connect - Paris"
+  cidr_ipv4          = "35.180.112.80/29"
+  from_port          = 22
+  to_port            = 22
+  ip_protocol        = "tcp"
+}
+
+# SSH depuis ton IP perso
+resource "aws_vpc_security_group_ingress_rule" "allow_ssh_my_ip_agent" {
+  security_group_id = aws_security_group.k3s_agent.id
+  cidr_ipv4          = var.home_ip_address
+  from_port          = 22
+  to_port            = 22
+  ip_protocol        = "tcp"
+}
+
+# Egress : tout autorisé (pour télécharger k3s, images Docker, etc.)
+resource "aws_vpc_security_group_egress_rule" "allow_all_outbound_agent" {
+  security_group_id = aws_security_group.k3s_agent.id
+  cidr_ipv4          = "0.0.0.0/0"
+  ip_protocol        = "-1"
+}
+
+# ------------------------------------------------------------------------------
+# 9. NŒUD AGENT K3S (exécutera l'appli, dans le cluster)
+# ------------------------------------------------------------------------------
+
+resource "aws_instance" "k3s_agent" {
+  ami                    = "ami-0e1c4170d9c01184b"
+  instance_type          = "t3.small"
+  availability_zone      = "eu-west-3c"
+  key_name               = "cv-analyzer-key"
+
+  vpc_security_group_ids = [
+    aws_security_group.k3s_agent.id,
+    aws_security_group.allow_k3s_cluster.id
+  ]
+
+  subnet_id = "subnet-0fbcf3069fea87e20"
+
+  tags = {
+    Name = "k3s-agent"
+  }
+}
