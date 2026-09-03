@@ -1,20 +1,21 @@
 # ------------------------------------------------------------------------------
 # 1. INSTANCE EC2
 # ------------------------------------------------------------------------------
-resource "aws_instance" "cv_analyzer" {
-  ami                    = "ami-0e1c4170d9c01184b"
-  instance_type          = "t3.small"
-  availability_zone      = "eu-west-3c"
-  key_name               = "cv-analyzer-key"
-  vpc_security_group_ids = [
-  aws_security_group.launch_wizard_1.id,
-  aws_security_group.allow_k3s_cluster.id]
-  subnet_id              = "subnet-0fbcf3069fea87e20"
+/* 
+#resource "aws_instance" "cv_analyzer" {
+#  ami                    = "ami-0e1c4170d9c01184b"
+#  instance_type          = "t3.small"
+# availability_zone      = "eu-west-3c"
+#  key_name               = "cv-analyzer-key"
+ # vpc_security_group_ids = [
+#  aws_security_group.launch_wizard_1.id,
+ # aws_security_group.allow_k3s_cluster.id]
+ # subnet_id              = "subnet-0fbcf3069fea87e20"
 
-  tags = {
-    Name = "cv-analyzer-test"
-  }
-}
+  #tags = {
+   # Name = "cv-analyzer-test"
+  #}
+#}
 
 # ------------------------------------------------------------------------------
 # 2. DÉFINITION DU SECURITY GROUP
@@ -87,7 +88,7 @@ resource "aws_vpc_security_group_egress_rule" "allow_all_outbound" {
   cidr_ipv4         = "0.0.0.0/0"
   ip_protocol       = "-1"
 }
-
+*/
 # ------------------------------------------------------------------------------
 # 5. SECURITY GROUP DÉDIÉ AU CLUSTER K3S (trafic interne uniquement)
 # ------------------------------------------------------------------------------
