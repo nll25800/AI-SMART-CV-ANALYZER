@@ -9,3 +9,6 @@ langchain-core==1.2.14
 langchain-groq==1.1.2
 httpx==0.28.1
 reportlab==4.4.10
+sqlalchemy==2.0.52
+alembic==1.19.1
+psycopg2-binary==2.9.12

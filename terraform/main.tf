@@ -260,3 +260,67 @@ resource "aws_instance" "k3s_agent" {
     Name = "k3s-agent"
   }
 }
+
+# ------------------------------------------------------------------------------
+# 10. PROVISIONING RDS POSTGRESQL
+# Créé le 2026-09-03 — Free Tier RDS (750h/mois db.t3.micro + 20 Go gp2)
+# RAPPEL EXPIRATION FREE TIER : ~2027-09-03
+# ------------------------------------------------------------------------------
+
+# Subnet Group pour RDS (exige au moins 2 sous-réseaux dans des AZ différentes)
+resource "aws_db_subnet_group" "rds" {
+  name       = "cv-analyzer-rds-subnet-group"
+  subnet_ids = [
+    "subnet-0fbcf3069fea87e20", # Ton subnet principal (eu-west-3c)
+    var.secondary_subnet_id     # Renseigne l'ID d'un 2e subnet dans une autre AZ
+  ]
+
+  tags = {
+    Name = "cv-analyzer-rds-subnet-group"
+  }
+}
+
+# Security Group dédié à RDS PostgreSQL
+resource "aws_security_group" "rds" {
+  name        = "rds-postgres-sg"
+  description = "Security group pour la base de donnees RDS PostgreSQL"
+  vpc_id      = var.vpc_id
+
+  tags = {
+    Name = "rds-postgres-sg"
+  }
+}
+
+# Ingress 5432 : autorisé uniquement depuis le Security Group du nœud Agent K3s
+resource "aws_vpc_security_group_ingress_rule" "allow_postgres_from_agent" {
+  security_group_id            = aws_security_group.rds.id
+  referenced_security_group_id = aws_security_group.k3s_agent.id
+  from_port                    = 5432
+  to_port                      = 5432
+  ip_protocol                  = "tcp"
+}
+
+
+# Instance RDS PostgreSQL
+resource "aws_db_instance" "postgres" {
+  identifier        = "cv-analyzer-db"
+  allocated_storage = 20
+  storage_type      = "gp2" # Corrected: gp2 est explicitement couvert par le Free Tier
+  engine            = "postgres"
+  engine_version    = "15" # Si le provider râle au plan, passe à une version mineure fixe (ex: "15.7")
+  instance_class    = "db.t3.micro"
+
+  db_name  = "cvanalyzer"
+  username = "postgres"
+  password = var.db_password
+
+  db_subnet_group_name   = aws_db_subnet_group.rds.name
+  vpc_security_group_ids = [aws_security_group.rds.id]
+
+  skip_final_snapshot = true
+  publicly_accessible = false
+
+  tags = {
+    Name = "cv-analyzer-rds"
+  }
+}

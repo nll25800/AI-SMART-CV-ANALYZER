@@ -1,3 +1,6 @@
+from sqlalchemy.orm import Session
+from fastapi import Depends
+from database import get_db, Analysis
 from fastapi import FastAPI, UploadFile, File, Form, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse, Response
@@ -42,7 +45,7 @@ async def search_jobs_endpoint(domain: str, location: str, results: int = 10):
 
 # ── Analyze ───────────────────────────────────────────────────────────────────
 @app.post("/analyze")
-async def analyze_cv(file: UploadFile = File(...), job_description: str = Form(...)):
+async def analyze_cv(file: UploadFile = File(...), job_description: str = Form(...),db: Session = Depends(get_db)):
     temp_path = f"temp_{file.filename}"
     with open(temp_path, "wb") as buffer:
         shutil.copyfileobj(file.file, buffer)
@@ -51,6 +54,16 @@ async def analyze_cv(file: UploadFile = File(...), job_description: str = Form(.
         cv_text = result.document.export_to_markdown()
         score   = get_matching_score(cv_text, job_description)
         advice  = get_ai_advice(cv_text, job_description, score)
+        
+        # Persistance en base
+        analysis = Analysis(
+            job_description=job_description,
+            score=score,
+            recommendations=advice
+        )
+        db.add(analysis)
+        db.commit()
+        
         return {"score": f"{score}%", "recommendations": advice}
     except Exception as e:
         return {"error": str(e)}
