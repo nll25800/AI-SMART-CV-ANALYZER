@@ -1,0 +1,66 @@
+# ------------------------------------------------------------------------------
+# 1. DEPLOYMENT — dit à k3s : fais tourner ce conteneur, garde-le vivant
+# ------------------------------------------------------------------------------
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: cv-analyzer
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: cv-analyzer
+  template:
+    metadata:
+      labels:
+        app: cv-analyzer
+    spec:     
+       containers:
+        - name: cv-analyzer
+          image: nettorche/cv-analyzer:v29
+          ports:
+            - containerPort: 8000
+          envFrom:
+            - secretRef:
+                name: cv-analyzer-secrets
+---
+# ------------------------------------------------------------------------------
+# 2. SERVICE — expose le Deployment en interne, avec un nom stable
+# ------------------------------------------------------------------------------
+apiVersion: v1
+kind: Service
+metadata:
+  name: cv-analyzer-svc
+spec:
+  selector:
+    app: cv-analyzer
+  ports:
+    - port: 8000
+      targetPort: 8000
+---
+# ------------------------------------------------------------------------------
+# 3. INGRESS — dit à Traefik : route ce nom de domaine vers ce Service
+# ------------------------------------------------------------------------------
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: cv-analyzer-ingress
+  annotations:
+    cert-manager.io/cluster-issuer: letsencrypt-prod
+spec:
+  ingressClassName: traefik
+  tls:
+    - hosts:
+        - cv-analyzer-na.duckdns.org
+      secretName: cv-analyzer-tls
+  rules:
+    - host: cv-analyzer-na.duckdns.org
+      http:
+        paths:
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: cv-analyzer-svc
+                port:
+                  number: 8000
